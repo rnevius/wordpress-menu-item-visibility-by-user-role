@@ -46,7 +46,7 @@ class Syntarsus_Menu_Item_Visibility {
      * @return string custom walker
      */
     public function edit_nav_menu_walker( $walker ) {
-        if( class_exists( 'Walker_Nav_Menu_Edit' ) ) {
+        if ( class_exists( 'Walker_Nav_Menu_Edit' ) ) {
             require_once( dirname( __FILE__ ) . '/includes/walker-nav-menu-edit.php' );
         }
         return 'Syntarsus_Walker_Nav_Menu_Edit';
@@ -60,16 +60,18 @@ class Syntarsus_Menu_Item_Visibility {
         $item_id = $item->ID;
         $roles = array_keys(wp_roles()->get_names());
         sort($roles);
+        $current_value = get_post_meta( $item_id, '_syntarsus_menu_item_visibility', true );
+        $current_value = is_array( $current_value ) ? join(', ', $current_value) : $current_value;
         ?>
         <p class="field-visibility description description-wide">
-            <label for="edit-menu-item-visibility-<?php echo $item_id; ?>">
-                Hide From: 
-                <a href="#TB_inline?width=600&height=550&inlineId=edit-menu-item-visibility-help" class="thickbox dashicons dashicons-editor-help" name="Hide Item from User Roles">&nbsp;</a>
+            <label for="syntarsus-edit-menu-item-visibility-<?php echo $item_id; ?>">
+                Hide From
+                <a href="#TB_inline?width=600&height=550&inlineId=syntarsus-edit-menu-item-visibility-help" class="thickbox dashicons dashicons-editor-help" name="Hide Item from User Roles">&nbsp;</a>
             </label>
             
-            <input type="text" class="widefat code" id="edit-menu-item-visibility-<?php echo $item_id ?>" name="menu-item-visibility[<?php echo $item_id; ?>]" value="<?php echo esc_html( get_post_meta( $item_id, '_menu_item_visibility', true ) ); ?>" />
+            <input type="text" class="widefat code" id="syntarsus-edit-menu-item-visibility-<?php echo $item_id ?>" name="syntarsus-menu-item-visibility[<?php echo $item_id; ?>]" value="<?php echo $current_value; ?>" />
         </p>
-        <div id="edit-menu-item-visibility-help" style="display: none;">
+        <div id="syntarsus-edit-menu-item-visibility-help" style="display: none;">
             <p>This field can be used to hide this menu item from any number of user roles.</p>
             <p>The input accepts a comma-delimited list of user roles. (Example: author, contributor).</p>
             <p>The following user roles are active on this site:</p>
@@ -78,15 +80,16 @@ class Syntarsus_Menu_Item_Visibility {
     <?php }
 
     public function update_option( $menu_id, $menu_item_db_id, $args ) {
-        if( isset( $_POST['menu-item-visibility'][$menu_item_db_id] ) ) {
-            $meta_value = get_post_meta( $menu_item_db_id, '_menu_item_visibility', true );
-            $new_meta_value = stripcslashes( $_POST['menu-item-visibility'][$menu_item_db_id] );
+        $input_value = !empty( $_POST['syntarsus-menu-item-visibility'][$menu_item_db_id] ) ?
+                       $_POST['syntarsus-menu-item-visibility'][$menu_item_db_id] :
+                       false;
+        $new_meta_value = $input_value ? array_map( 'trim', explode(',', stripcslashes( $input_value )) ) : false;
+        $saved_meta_value = get_post_meta( $menu_item_db_id, '_syntarsus_menu_item_visibility', true );
 
-            if( '' == $new_meta_value ) {
-                delete_post_meta( $menu_item_db_id, '_menu_item_visibility', $meta_value );
-            } elseif( $meta_value !== $new_meta_value ) {
-                update_post_meta( $menu_item_db_id, '_menu_item_visibility', $new_meta_value );
-            }
+        if ( !$new_meta_value && $saved_meta_value ) {
+            delete_post_meta( $menu_item_db_id, '_syntarsus_menu_item_visibility', $saved_meta_value );
+        } elseif ( $new_meta_value !== $saved_meta_value ) {
+            update_post_meta( $menu_item_db_id, '_syntarsus_menu_item_visibility', $new_meta_value );
         }
     }
 
@@ -101,11 +104,11 @@ class Syntarsus_Menu_Item_Visibility {
         $hidden_items = array();
         foreach( $items as $key => $item ) {
             $item_parent = get_post_meta( $item->ID, '_menu_item_menu_item_parent', true );
-            if( $logic = get_post_meta( $item->ID, '_menu_item_visibility', true ) )
+            if ( $logic = get_post_meta( $item->ID, '_syntarsus_menu_item_visibility', true ) )
                 eval( '$visible = ' . $logic . ';' );
             else
                 $visible = true;
-            if( ! $visible
+            if ( ! $visible
                 || isset( $hidden_items[$item_parent] ) // also hide the children of invisible items
             ) {
                 unset( $items[$key] );
@@ -117,13 +120,13 @@ class Syntarsus_Menu_Item_Visibility {
     }
 
     /**
-     * Remove the _menu_item_visibility meta when the menu item is removed
+     * Remove the _syntarsus_menu_item_visibility meta when the menu item is removed
      *
      * @since 0.2.2
      */
     public function remove_visibility_meta( $post_id ) {
-        if( is_nav_menu_item( $post_id ) ) {
-            delete_post_meta( $post_id, '_menu_item_visibility' );
+        if ( is_nav_menu_item( $post_id ) ) {
+            delete_post_meta( $post_id, '_syntarsus_menu_item_visibility' );
         }
     }
 }
