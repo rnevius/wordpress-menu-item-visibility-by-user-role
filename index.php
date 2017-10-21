@@ -67,7 +67,7 @@ class Syntarsus_Menu_Item_Visibility {
         ?>
         <p class="field-visibility description description-wide">
             <label for="syntarsus-edit-menu-item-visibility-<?php echo $item_id; ?>">
-                Show to
+                Restrict to Roles 
                 <a href="#TB_inline?width=600&height=550&inlineId=syntarsus-edit-menu-item-visibility-help" class="thickbox dashicons dashicons-editor-help" name="Limit Items to User Roles">&nbsp;</a>
             </label>
             
@@ -83,9 +83,9 @@ class Syntarsus_Menu_Item_Visibility {
 
     public function update_option( $menu_id, $menu_item_db_id, $args ) {
         $input_value = !empty( $_POST['syntarsus-menu-item-visibility'][$menu_item_db_id] ) ?
-                       $_POST['syntarsus-menu-item-visibility'][$menu_item_db_id] :
+                       sanitize_text_field($_POST['syntarsus-menu-item-visibility'][$menu_item_db_id]) :
                        false;
-        $new_meta_value = $input_value ? array_map( 'trim', explode(',', stripcslashes( $input_value )) ) : false;
+        $new_meta_value = $input_value ? array_map( 'trim', explode(',', $input_value) ) : false;
         $saved_meta_value = get_post_meta( $menu_item_db_id, '_syntarsus_menu_item_visibility', true );
 
         if ( !$new_meta_value && $saved_meta_value ) {
