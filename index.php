@@ -100,7 +100,7 @@ class Syntarsus_Menu_Item_Visibility {
         $input_value = !empty( $_POST['syntarsus-menu-item-visibility'][$menu_item_db_id] ) ?
                        sanitize_text_field($_POST['syntarsus-menu-item-visibility'][$menu_item_db_id]) :
                        false;
-        $new_meta_value = $input_value ? array_map( 'trim', explode(',', $input_value) ) : false;
+        $new_meta_value = $input_value ? array_map( 'trim', explode(',', $input_value) ) : '';
         $saved_meta_value = get_post_meta( $menu_item_db_id, '_syntarsus_menu_item_visibility', true );
 
         if ( !$new_meta_value && $saved_meta_value ) {
