@@ -124,38 +124,21 @@ class Syntarsus_Menu_Item_Visibility {
             return $menu_items;
         }
 
-        $parent_items = array_filter( $menu_items, function($item) {
-            return ! $item->menu_item_parent;
-        });
-        $hidden_parents = array();
+        $hidden_items = array();
 
-        // Start with parent items to reduce child item database calls,
-        // when parent items are hidden
-        foreach ($parent_items as $key => $menu_item) {
+        foreach ( $menu_items as $key => $menu_item ) {
+            // Avoid doing a database call if the item's parent is hidden
+            if ( in_array($menu_item->menu_item_parent, $hidden_items) ) {
+                $hidden_items[] = $menu_item->ID;
+                unset($menu_items[$key]);
+            }
+
             $meta_value = get_post_meta( $menu_item->ID, '_syntarsus_menu_item_visibility', true );
 
             // Remove the item if the current role isn't allowed to view it
             if ( $meta_value && !array_intersect( $meta_value, $current_user_roles ) ) {
-                $hidden_parents[] = $menu_item->ID;
+                $hidden_items[] = $menu_item->ID;
                 unset($menu_items[$key]);
-            }
-        }
-
-        // Filter a new list of items to remove parents and children
-        // hidden from above
-        $menu_items = array_filter( $menu_items, function($item) use ($hidden_parents) {
-            return !in_array($item->menu_item_parent, $hidden_parents);
-        });
-        
-        foreach ($menu_items as $key => $menu_item) {
-            // We're only concerned with child items here,
-            // since parents have been looped through above
-            if ( $menu_item->menu_item_parent ) {
-                $meta_value = get_post_meta( $menu_item->ID, '_syntarsus_menu_item_visibility', true );
-
-                if ( $meta_value && !array_intersect( $meta_value, $current_user_roles ) ) {
-                    unset($menu_items[$key]);
-                }
             }
         }
 
