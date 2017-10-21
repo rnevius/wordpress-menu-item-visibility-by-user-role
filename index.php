@@ -17,6 +17,18 @@ class Syntarsus_Menu_Item_Visibility {
 
     private static $instance = null;
 
+    private function __construct() {
+        if ( is_admin() ) {
+            add_action( 'delete_post', array( $this, 'remove_menu_visibility_meta' ), 1, 3 );
+            add_filter( 'wp_edit_nav_menu_walker', array( $this, 'edit_nav_menu_walker' ) );
+            add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+            add_action( 'wp_nav_menu_item_custom_fields', array( $this, 'custom_field_html' ), 12, 4 );
+            add_action( 'wp_update_nav_menu_item', array( $this, 'update_item_meta' ), 10, 3 );
+        } else {
+            add_filter( 'wp_nav_menu_objects', array( $this, 'check_item_visibility' ), 10, 2 );
+        }
+    }
+
     /**
      * Creates or returns a single instance of this class 
      *
@@ -24,18 +36,6 @@ class Syntarsus_Menu_Item_Visibility {
      */
     public static function get_instance() {
         return is_null( self::$instance ) ? self::$instance = new self() : self::$instance;
-    }
-
-    public function __construct() {
-        if ( is_admin() ) {
-            add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
-            add_filter( 'wp_edit_nav_menu_walker', array( $this, 'edit_nav_menu_walker' ) );
-            add_action( 'wp_nav_menu_item_custom_fields', array( $this, 'option' ), 12, 4 );
-            add_action( 'wp_update_nav_menu_item', array( $this, 'update_option' ), 10, 3 );
-            add_action( 'delete_post', array( $this, 'remove_visibility_meta' ), 1, 3);
-        } else {
-            add_filter( 'wp_nav_menu_objects', array( $this, 'check_item_visibility' ), 10, 2 );
-        }
     }
 
     /**
@@ -47,41 +47,56 @@ class Syntarsus_Menu_Item_Visibility {
      *
      * @return string custom walker
      */
-    public function edit_nav_menu_walker( $walker ) {
+    public static function edit_nav_menu_walker( $walker ) {
         if ( class_exists( 'Walker_Nav_Menu_Edit' ) ) {
             require_once( dirname( __FILE__ ) . '/includes/walker-nav-menu-edit.php' );
         }
         return 'Syntarsus_Walker_Nav_Menu_Edit';
     }
 
-    public function enqueue_scripts() {
+    public static function enqueue_scripts() {
         add_thickbox();
     }
 
-    public function option( $item_id, $item, $depth, $args ) {
+
+    public function custom_field_html( $item_id, $item, $depth, $args ) {
         $item_id = $item->ID;
-        $roles = array_keys(wp_roles()->get_names());
-        sort($roles);
+
+        // A list of roles for the lightbox
+        $all_roles = array_keys(wp_roles()->get_names());
+        sort($all_roles);
+
+        // Get the current meta value, if there is one
         $current_value = get_post_meta( $item_id, '_syntarsus_menu_item_visibility', true );
         $current_value = is_array( $current_value ) ? join(', ', $current_value) : $current_value;
         ?>
         <p class="field-visibility description description-wide">
             <label for="syntarsus-edit-menu-item-visibility-<?php echo $item_id; ?>">
                 Restrict to Roles 
-                <a href="#TB_inline?width=600&height=550&inlineId=syntarsus-edit-menu-item-visibility-help" class="thickbox dashicons dashicons-editor-help" name="Limit Items to User Roles">&nbsp;</a>
+                <a href="#TB_inline?width=600&height=550&inlineId=syntarsus-edit-menu-item-visibility-help" class="thickbox dashicons dashicons-editor-help" 
+                name="Limit Items to User Roles">&nbsp;</a>
             </label>
             
-            <input type="text" class="widefat code" id="syntarsus-edit-menu-item-visibility-<?php echo $item_id ?>" name="syntarsus-menu-item-visibility[<?php echo $item_id; ?>]" value="<?php echo $current_value; ?>" />
+            <input type="text" 
+                   class="widefat code" 
+                   id="syntarsus-edit-menu-item-visibility-<?php echo $item_id ?>" 
+                   name="syntarsus-menu-item-visibility[<?php echo $item_id; ?>]" 
+                   value="<?php echo $current_value; ?>" />
         </p>
+
+        <?php // lightbox ?>
         <div id="syntarsus-edit-menu-item-visibility-help" style="display: none;">
             <p>This field can be used to show this menu item only to specific user roles. The default (blank) will show the menu item to all roles.</p>
             <p>The input accepts a comma-delimited list of user roles. (Example: author, contributor).</p>
             <p>The following user roles are active on this site:</p>
-            <p><?php echo join(', ', $roles); ?></p>
+            <p><?php echo join(', ', $all_roles); ?></p>
         </div>
     <?php }
 
-    public function update_option( $menu_id, $menu_item_db_id, $args ) {
+    /**
+     * Add or update visibility options for a menu item
+     */
+    public function update_item_meta( $menu_id, $menu_item_db_id, $args ) {
         $input_value = !empty( $_POST['syntarsus-menu-item-visibility'][$menu_item_db_id] ) ?
                        sanitize_text_field($_POST['syntarsus-menu-item-visibility'][$menu_item_db_id]) :
                        false;
@@ -103,6 +118,8 @@ class Syntarsus_Menu_Item_Visibility {
      */
     public function check_item_visibility( $menu_items, $args ) {
         $current_user_roles = wp_get_current_user()->roles;
+
+        // If the current user is an administrator, show them everything
         if ( in_array('administrator', $current_user_roles) ) {
             return $menu_items;
         }
@@ -117,6 +134,7 @@ class Syntarsus_Menu_Item_Visibility {
         foreach ($parent_items as $key => $menu_item) {
             $meta_value = get_post_meta( $menu_item->ID, '_syntarsus_menu_item_visibility', true );
 
+            // Remove the item if the current role isn't allowed to view it
             if ( $meta_value && !array_intersect( $meta_value, $current_user_roles ) ) {
                 $hidden_parents[] = $menu_item->ID;
                 unset($menu_items[$key]);
@@ -147,7 +165,7 @@ class Syntarsus_Menu_Item_Visibility {
     /**
      * Remove the _syntarsus_menu_item_visibility meta when the menu item is removed
      */
-    public function remove_visibility_meta( $post_id ) {
+    public function remove_menu_visibility_meta( $post_id ) {
         if ( is_nav_menu_item( $post_id ) ) {
             delete_post_meta( $post_id, '_syntarsus_menu_item_visibility' );
         }
