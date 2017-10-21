@@ -9,6 +9,10 @@ class Syntarsus_Walker_Nav_Menu_Edit extends Walker_Nav_Menu_Edit {
     /**
      * Start the element output.
      *
+     * This method only differs from the Walker_Nav_Menu_Edit instance
+     * by a single line (where do_action() is added), and injects custom
+     * fields to the menu item edit form.
+     *
      * @see Walker_Nav_Menu::start_el()
      * @since 3.0.0
      *
@@ -35,7 +39,7 @@ class Syntarsus_Walker_Nav_Menu_Edit extends Walker_Nav_Menu_Edit {
             '_wpnonce',
         );
 
-        $original_title = '';
+        $original_title = false;
         if ( 'taxonomy' == $item->type ) {
             $original_title = get_term_field( 'name', $item->object_id, $item->object, 'raw' );
             if ( is_wp_error( $original_title ) )
@@ -164,16 +168,14 @@ class Syntarsus_Walker_Nav_Menu_Edit extends Walker_Nav_Menu_Edit {
 
                 <?php do_action( 'wp_nav_menu_item_custom_fields', $item_id, $item, $depth, $args ); ?>
 
-                <p class="field-move hide-if-no-js description description-wide">
-                    <label>
-                        <span><?php _e( 'Move' ); ?></span>
-                        <a href="#" class="menus-move menus-move-up" data-dir="up"><?php _e( 'Up one' ); ?></a>
-                        <a href="#" class="menus-move menus-move-down" data-dir="down"><?php _e( 'Down one' ); ?></a>
-                        <a href="#" class="menus-move menus-move-left" data-dir="left"></a>
-                        <a href="#" class="menus-move menus-move-right" data-dir="right"></a>
-                        <a href="#" class="menus-move menus-move-top" data-dir="top"><?php _e( 'To the top' ); ?></a>
-                    </label>
-                </p>
+                <fieldset class="field-move hide-if-no-js description description-wide">
+                    <span class="field-move-visual-label" aria-hidden="true"><?php _e( 'Move' ); ?></span>
+                    <button type="button" class="button-link menus-move menus-move-up" data-dir="up"><?php _e( 'Up one' ); ?></button>
+                    <button type="button" class="button-link menus-move menus-move-down" data-dir="down"><?php _e( 'Down one' ); ?></button>
+                    <button type="button" class="button-link menus-move menus-move-left" data-dir="left"></button>
+                    <button type="button" class="button-link menus-move menus-move-right" data-dir="right"></button>
+                    <button type="button" class="button-link menus-move menus-move-top" data-dir="top"><?php _e( 'To the top' ); ?></button>
+                </fieldset>
 
                 <div class="menu-item-actions description-wide submitbox">
                     <?php if ( 'custom' != $item->type && $original_title !== false ) : ?>
