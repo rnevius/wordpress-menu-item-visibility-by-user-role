@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Menu Item Visibility Control
  * Plugin URI: https://github.com/rnevius/wordpress-menu-item-visibility-by-user-role
- * Description: Hide individual menu items for certain user roles.
+ * Description: Limit menu items to specific user roles.
  * Version: 1.0.0
  * Author: Ryan Nevius
  * Author URI: http://ryannevius.com
@@ -33,6 +33,8 @@ class Syntarsus_Menu_Item_Visibility {
             add_action( 'wp_nav_menu_item_custom_fields', array( $this, 'option' ), 12, 4 );
             add_action( 'wp_update_nav_menu_item', array( $this, 'update_option' ), 10, 3 );
             add_action( 'delete_post', array( $this, 'remove_visibility_meta' ), 1, 3);
+        } else {
+            add_filter( 'wp_nav_menu_objects', array( $this, 'check_item_visibility' ), 10, 2 );
         }
     }
 
@@ -65,14 +67,14 @@ class Syntarsus_Menu_Item_Visibility {
         ?>
         <p class="field-visibility description description-wide">
             <label for="syntarsus-edit-menu-item-visibility-<?php echo $item_id; ?>">
-                Hide From
-                <a href="#TB_inline?width=600&height=550&inlineId=syntarsus-edit-menu-item-visibility-help" class="thickbox dashicons dashicons-editor-help" name="Hide Item from User Roles">&nbsp;</a>
+                Show to
+                <a href="#TB_inline?width=600&height=550&inlineId=syntarsus-edit-menu-item-visibility-help" class="thickbox dashicons dashicons-editor-help" name="Limit Items to User Roles">&nbsp;</a>
             </label>
             
             <input type="text" class="widefat code" id="syntarsus-edit-menu-item-visibility-<?php echo $item_id ?>" name="syntarsus-menu-item-visibility[<?php echo $item_id; ?>]" value="<?php echo $current_value; ?>" />
         </p>
         <div id="syntarsus-edit-menu-item-visibility-help" style="display: none;">
-            <p>This field can be used to hide this menu item from any number of user roles.</p>
+            <p>This field can be used to show this menu item only to specific user roles. The default (blank) will show the menu item to all roles.</p>
             <p>The input accepts a comma-delimited list of user roles. (Example: author, contributor).</p>
             <p>The following user roles are active on this site:</p>
             <p><?php echo join(', ', $roles); ?></p>
@@ -98,31 +100,52 @@ class Syntarsus_Menu_Item_Visibility {
      * removes menu items that are not visible.
      *
      * @return array
-     * @since 0.1
      */
-    public function visibility_check( $items, $menu, $args ) {
-        $hidden_items = array();
-        foreach( $items as $key => $item ) {
-            $item_parent = get_post_meta( $item->ID, '_menu_item_menu_item_parent', true );
-            if ( $logic = get_post_meta( $item->ID, '_syntarsus_menu_item_visibility', true ) )
-                eval( '$visible = ' . $logic . ';' );
-            else
-                $visible = true;
-            if ( ! $visible
-                || isset( $hidden_items[$item_parent] ) // also hide the children of invisible items
-            ) {
-                unset( $items[$key] );
-                $hidden_items[$item->ID] = '1';
+    public function check_item_visibility( $menu_items, $args ) {
+        $current_user_roles = wp_get_current_user()->roles;
+        if ( in_array('administrator', $current_user_roles) ) {
+            return $menu_items;
+        }
+
+        $parent_items = array_filter( $menu_items, function($item) {
+            return ! $item->menu_item_parent;
+        });
+        $hidden_parents = array();
+
+        // Start with parent items to reduce child item database calls,
+        // when parent items are hidden
+        foreach ($parent_items as $key => $menu_item) {
+            $meta_value = get_post_meta( $menu_item->ID, '_syntarsus_menu_item_visibility', true );
+
+            if ( $meta_value && !array_intersect( $meta_value, $current_user_roles ) ) {
+                $hidden_parents[] = $menu_item->ID;
+                unset($menu_items[$key]);
             }
         }
 
-        return $items;
+        // Filter a new list of items to remove parents and children
+        // hidden from above
+        $menu_items = array_filter( $menu_items, function($item) use ($hidden_parents) {
+            return !in_array($item->menu_item_parent, $hidden_parents);
+        });
+        
+        foreach ($menu_items as $key => $menu_item) {
+            // We're only concerned with child items here,
+            // since parents have been looped through above
+            if ( $menu_item->menu_item_parent ) {
+                $meta_value = get_post_meta( $menu_item->ID, '_syntarsus_menu_item_visibility', true );
+
+                if ( $meta_value && !array_intersect( $meta_value, $current_user_roles ) ) {
+                    unset($menu_items[$key]);
+                }
+            }
+        }
+
+        return $menu_items;
     }
 
     /**
      * Remove the _syntarsus_menu_item_visibility meta when the menu item is removed
-     *
-     * @since 0.2.2
      */
     public function remove_visibility_meta( $post_id ) {
         if ( is_nav_menu_item( $post_id ) ) {
