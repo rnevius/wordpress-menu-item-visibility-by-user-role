@@ -142,7 +142,7 @@ class Syntarsus_Menu_Item_Visibility {
             }
         }
 
-        return $menu_items;
+        return self::update_menu_parent_item_classes($menu_items);
     }
 
     /**
@@ -152,6 +152,31 @@ class Syntarsus_Menu_Item_Visibility {
         if ( is_nav_menu_item( $post_id ) ) {
             delete_post_meta( $post_id, '_syntarsus_menu_item_visibility' );
         }
+    }
+
+    public static function update_menu_parent_item_classes( $menu_items ) {
+        $menu_items_with_children = array();
+
+        // Remove parent item class from all items
+        // Determine new list of items with children
+        foreach ( $menu_items as &$menu_item ) {
+            $menu_item->classes = array_diff($menu_item->classes, array('menu-item-has-children'));
+
+            if ( $menu_item->menu_item_parent ) {
+                $menu_items_with_children[ $menu_item->menu_item_parent ] = true;
+            }
+        }
+
+        // Add the menu-item-has-children class to all parent items
+        if ( $menu_items_with_children ) {
+            foreach ( $menu_items as &$menu_item ) {
+                if ( isset( $menu_items_with_children[ $menu_item->ID ] ) ) {
+                    $menu_item->classes[] = 'menu-item-has-children';
+                }
+            }
+        }
+
+        return $menu_items;
     }
 }
 Syntarsus_Menu_Item_Visibility::get_instance();
