@@ -1,11 +1,10 @@
 <?php
 /**
- * Plugin Name: Menu Item Visibility Control
- * Plugin URI: https://github.com/rnevius/wordpress-menu-item-visibility-by-user-role
- * Description: Limit menu items to specific user roles.
+ * Plugin Name: Restricted Menu Items
+ * Description: Restrict menu items to specific user roles.
  * Version: 1.0.0
- * Author: Ryan Nevius
- * Author URI: http://ryannevius.com
+ * Author: Syntarsus, LLC
+ * Author URI: https://syntarsusdigital.com
  * Requires at least: 4.8
  * Tested up to: 4.8
  */
